@@ -48,7 +48,7 @@ export default function Home() {
     ? `🔥 NeuroRoast меня уничтожил:\n\n${result.roast}\n\n🧠 Искажение: ${result.distortion}\n\n💊 Рецепт: ${result.action}`
     : "";
 
-  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent("https://neuroroast.app")}&text=${encodeURIComponent(shareText)}`;
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent("https://hardpsyh.vercel.app")}&text=${encodeURIComponent(shareText)}`;
 
   return (
     <main className="min-h-screen bg-neutral-950 text-white flex flex-col items-center px-4 py-12 relative overflow-hidden">
