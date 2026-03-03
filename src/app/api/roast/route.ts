@@ -3,29 +3,41 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import OpenAI from "openai";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-const ratelimit = new Ratelimit({
-  redis,
-  limiter: Ratelimit.fixedWindow(50, "24 h"),
-  analytics: true,
-});
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-  baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-});
-
 const SYSTEM_PROMPT = `Ты - токсичный, но профессиональный AI-аддиктолог. База - КПТ (когнитивно-поведенческая терапия). Юзер присылает оправдание срыву. Жестко, саркастично высмей его, укажи на когнитивное искажение и дай ОДИН жесткий прикладной шаг прямо сейчас. Отвечай ТОЛЬКО валидным JSON без markdown-обёртки. Формат: {"roast": "...", "distortion": "...", "action": "..."}`;
+
+let _openai: OpenAI | null = null;
+let _ratelimit: Ratelimit | null = null;
+
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY!,
+      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+    });
+  }
+  return _openai;
+}
+
+function getRatelimit() {
+  if (!_ratelimit) {
+    const redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+    _ratelimit = new Ratelimit({
+      redis,
+      limiter: Ratelimit.fixedWindow(50, "24 h"),
+      analytics: true,
+    });
+  }
+  return _ratelimit;
+}
 
 export async function POST(req: NextRequest) {
   try {
     const ip = req.headers.get("x-forwarded-for") ?? "127.0.0.1";
 
-    const { success } = await ratelimit.limit(ip);
+    const { success } = await getRatelimit().limit(ip);
 
     if (!success) {
       return NextResponse.json(
@@ -51,7 +63,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const completion = await openai.chat.completions.create({
+    const completion = await getOpenAI().chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
@@ -83,3 +95,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
